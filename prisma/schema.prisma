@@ -1,0 +1,157 @@
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MediaType {
+  image
+  video
+}
+
+
+model User {
+  id          String    @id @default(uuid())
+  username    String    @unique
+  email       String   
+  password    String
+  refreshToken String?
+  avatarUrl   String?
+  bio         String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  posts       Post[]
+  comments    Comment[]
+  likes       Like[]
+  savedPosts    SavedPost[]
+  sentMessages  Message[] @relation("UserSentMessages")
+  chatParticipants ChatParticipant[]
+  followers   Follow[]  @relation("Followers")
+  following   Follow[]  @relation("Following")
+
+  Message Message[]
+}
+
+model Post {
+  id          String    @id @default(uuid())
+  caption     String?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+
+  media       Media[]
+  comments    Comment[]
+  likes       Like[]
+
+  SavedPost SavedPost[]
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  url       String
+  type      MediaType
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+}
+
+model Comment {
+  id          String     @id @default(uuid())
+  content     String
+  createdAt   DateTime   @default(now())
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+
+  post        Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId      String
+
+  parent      Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId    String?
+
+  replies     Comment[]  @relation("CommentReplies")
+  likes       Like[]
+}
+
+model Like {
+  id          String    @id @default(uuid())
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+
+  post        Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId      String?
+
+  comment     Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId   String?
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+}
+
+model Follow {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+
+  follower      User     @relation("Followers", fields: [followerId], references: [id])
+  followerId    String
+
+  following     User     @relation("Following", fields: [followingId], references: [id])
+  followingId   String
+
+  @@unique([followerId, followingId])
+}
+
+model Chat {
+  id         String     @id @default(uuid())
+  createdAt  DateTime   @default(now())
+
+  users      ChatParticipant[]
+  messages   Message[]
+}
+
+model ChatParticipant {
+  id        String   @id @default(uuid())
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    String
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  @@unique([chatId, userId])
+}
+
+model Message {
+  id        String     @id @default(uuid())
+  content   String
+  createdAt DateTime   @default(now())
+
+  chat      Chat       @relation(fields: [chatId], references: [id])
+  chatId    String
+
+  sender    User       @relation(fields: [senderId], references: [id])
+  senderId  String
+
+  User User[] @relation("UserSentMessages")
+}
+
+model SavedPost {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+
+  @@unique([userId, postId]) // нельзя сохранить один и тот же пост дважды
+}
